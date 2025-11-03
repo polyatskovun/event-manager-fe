@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import EventsPage from './pages/EventsPage';
 import GuestsPage from './pages/GuestsPage';
+import CreateEventPage from './pages/CreateEventPage';
 import './App.css';
 
 function App() {
@@ -14,14 +15,8 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/events"
-            element={
-              <ProtectedRoute>
-                <EventsPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/create-event" element={<CreateEventPage />} />
+          <Route path="/events" element={<EventsPage />} />
           <Route
             path="/guests"
             element={

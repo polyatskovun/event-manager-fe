@@ -8,6 +8,35 @@ const EventCard = ({ event, onSave, onDelete, originalEvent }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
   const [showAddOptionModal, setShowAddOptionModal] = useState(false);
+  const [optionDropdownValue, setOptionDropdownValue] = useState('');
+
+  const availableOptions = [
+    { key: 'catering', label: 'Кейтеринг', icon: '🍽️' },
+    { key: 'entertainment', label: 'Розваги/Музика', icon: '🎵' },
+    { key: 'photography', label: 'Фото/Відео зйомка', icon: '📸' },
+    { key: 'decoration', label: 'Декорації', icon: '🎨' },
+    { key: 'dj', label: 'DJ', icon: '🎧' },
+    { key: 'liveBand', label: 'Жива музика/Гурт', icon: '🎸' },
+    { key: 'host', label: 'Ведучий', icon: '🎤' },
+    { key: 'soundSystem', label: 'Звукова система', icon: '🔊' },
+    { key: 'lighting', label: 'Освітлення', icon: '💡' },
+    { key: 'bartending', label: 'Барна стійка/Бармен', icon: '🍹' },
+    { key: 'cake', label: 'Торт/Десерти', icon: '🎂' },
+    { key: 'florist', label: 'Флорист/Квіти', icon: '💐' },
+    { key: 'security', label: 'Охорона', icon: '🛡️' },
+    { key: 'parking', label: 'Парковка/Valet', icon: '🚗' },
+    { key: 'transportation', label: 'Транспорт для гостей', icon: '🚌' },
+    { key: 'accommodation', label: 'Розміщення гостей', icon: '🏨' },
+    { key: 'invitations', label: 'Запрошення/Друк', icon: '💌' },
+    { key: 'gifts', label: 'Подарунки/Бонбоньєрки', icon: '🎁' },
+    { key: 'animator', label: 'Аніматор', icon: '🤹' },
+    { key: 'fireworks', label: 'Феєрверк/Салют', icon: '🎆' },
+  ];
+
+  useEffect(() => {
+    // Update editedEvent when event prop changes (e.g., after save)
+    setEditedEvent(event);
+  }, [event]);
 
   useEffect(() => {
     // Check if there are any changes
@@ -31,7 +60,7 @@ const EventCard = ({ event, onSave, onDelete, originalEvent }) => {
     setEditedEvent((prev) => ({
       ...prev,
       options: prev.options.map((opt) =>
-        opt.id === optionId ? { ...opt, completed: !opt.completed } : opt
+        opt.id === optionId ? { ...opt, done: !opt.done } : opt
       ),
     }));
   };
@@ -146,7 +175,19 @@ const EventCard = ({ event, onSave, onDelete, originalEvent }) => {
               <div className="guests-list">
                 {editedEvent.guests.map((guest) => (
                   <div key={guest.id} className="guest-item">
-                    <span className="guest-tag">{guest.name}</span>
+                    <div className="guest-info">
+                      <span className="guest-name">{guest.name}</span>
+                      {guest.email && (
+                        <span className="guest-detail">
+                          📧 {guest.email}
+                        </span>
+                      )}
+                      {guest.telephone && (
+                        <span className="guest-detail">
+                          📱 {guest.telephone}
+                        </span>
+                      )}
+                    </div>
                     <button
                       className="btn-remove-guest"
                       onClick={() => handleRemoveGuest(guest.id)}
@@ -175,10 +216,10 @@ const EventCard = ({ event, onSave, onDelete, originalEvent }) => {
                   <div key={option.id} className="option-item">
                     <input
                       type="checkbox"
-                      checked={option.completed}
+                      checked={option.done}
                       onChange={() => handleOptionToggle(option.id)}
                     />
-                    <span className={option.completed ? 'completed' : ''}>
+                    <span className={option.done ? 'completed' : ''}>
                       {option.name}
                     </span>
                     <button

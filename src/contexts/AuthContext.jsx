@@ -40,15 +40,20 @@ export const AuthProvider = ({ children }) => {
       if (response.token) {
         localStorage.setItem('authToken', response.token);
         setToken(response.token);
+      } else {
+        throw new Error('No token received from server');
       }
 
       if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
+      } else {
+        throw new Error('No user data received from server');
       }
 
       return response;
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };

@@ -9,7 +9,7 @@ const AddGuestModal = ({ isOpen, onClose, onAddGuest, existingGuestIds = [] }) =
   const [newGuest, setNewGuest] = useState({
     name: '',
     email: '',
-    phone: '',
+    telephone: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -34,10 +34,11 @@ const AddGuestModal = ({ isOpen, onClose, onAddGuest, existingGuestIds = [] }) =
       return;
     }
 
-    const guest = allGuests.find((g) => g.id === parseInt(selectedGuestId));
+    const guest = allGuests.find((g) => g.id === selectedGuestId || g.id.toString() === selectedGuestId);
     if (guest) {
       onAddGuest(guest);
       setSelectedGuestId('');
+      onClose();
     }
   };
 
@@ -49,12 +50,29 @@ const AddGuestModal = ({ isOpen, onClose, onAddGuest, existingGuestIds = [] }) =
       return;
     }
 
+    // Валідація довжини
+    if (newGuest.name.length > 100) {
+      alert('Ім\'я гостя не може бути довшим за 100 символів');
+      return;
+    }
+
+    if (newGuest.email && newGuest.email.length > 100) {
+      alert('Email не може бути довшим за 100 символів');
+      return;
+    }
+
+    if (newGuest.telephone && newGuest.telephone.length > 20) {
+      alert('Телефон не може бути довшим за 20 символів');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const createdGuest = await guestsAPI.create(newGuest);
       onAddGuest(createdGuest);
-      setNewGuest({ name: '', email: '', phone: '' });
+      setNewGuest({ name: '', email: '', telephone: '' });
+      onClose();
     } catch (error) {
       alert('Помилка створення гостя: ' + error.message);
     } finally {
@@ -119,6 +137,7 @@ const AddGuestModal = ({ isOpen, onClose, onAddGuest, existingGuestIds = [] }) =
                 type="text"
                 id="new-guest-name"
                 required
+                maxLength="100"
                 placeholder="Ім'я гостя"
                 value={newGuest.name}
                 onChange={(e) =>
@@ -131,6 +150,7 @@ const AddGuestModal = ({ isOpen, onClose, onAddGuest, existingGuestIds = [] }) =
               <input
                 type="email"
                 id="new-guest-email"
+                maxLength="100"
                 placeholder="email@example.com"
                 value={newGuest.email}
                 onChange={(e) =>
@@ -143,10 +163,11 @@ const AddGuestModal = ({ isOpen, onClose, onAddGuest, existingGuestIds = [] }) =
               <input
                 type="tel"
                 id="new-guest-phone"
+                maxLength="20"
                 placeholder="+380XXXXXXXXX"
-                value={newGuest.phone}
+                value={newGuest.telephone}
                 onChange={(e) =>
-                  setNewGuest({ ...newGuest, phone: e.target.value })
+                  setNewGuest({ ...newGuest, telephone: e.target.value })
                 }
               />
             </div>

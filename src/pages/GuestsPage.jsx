@@ -49,9 +49,23 @@ const GuestsPage = () => {
             ) : (
               guests.map((guest) => (
                 <div key={guest.id} className="guest-card">
-                  <h3>{guest.name}</h3>
-                  <p>{guest.email}</p>
-                  <p>{guest.phone}</p>
+                  <div className="guest-card-header">
+                    <h3 className="guest-card-name">{guest.name}</h3>
+                  </div>
+                  <div className="guest-card-details">
+                    {guest.email && (
+                      <p className="guest-card-info">
+                        <span className="info-icon">📧</span>
+                        <span className="info-text">{guest.email}</span>
+                      </p>
+                    )}
+                    {guest.telephone && (
+                      <p className="guest-card-info">
+                        <span className="info-icon">📱</span>
+                        <span className="info-text">{guest.telephone}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))
             )}

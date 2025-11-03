@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import Header from '../components/common/Header';
 
 const LoginPage = () => {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -14,14 +15,14 @@ const LoginPage = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated()) {
+    if (token) {
       navigate('/events');
     }
-  }, [isAuthenticated, navigate]);
+  }, [token, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -83,9 +84,7 @@ const LoginPage = () => {
         }
 
         setSuccess('Успішний вхід! Перенаправлення...');
-        setTimeout(() => {
-          navigate('/events');
-        }, 1000);
+        // Навігація відбудеться автоматично через useEffect коли token оновиться
       }
     } catch (err) {
       setError(err.message || 'Помилка при виконанні операції');
@@ -96,21 +95,7 @@ const LoginPage = () => {
 
   return (
     <>
-      <header>
-        <img src="/assets/img/blob-haikei.svg" alt="Event manager logo bg" className="logo-bg" />
-        <img src="/assets/img/logo.png" alt="Event manager logo" className="logo" />
-        <h1>Event manager</h1>
-        <nav>
-          <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/events">My Events</a></li>
-            <li><a href="/guests">Guests</a></li>
-            <li><a href="#">Statistics</a></li>
-            <li><a href="#">Contacts</a></li>
-          </ul>
-        </nav>
-        <button onClick={() => navigate('/login')}>Login</button>
-      </header>
+      <Header />
 
       <main className="login-container">
         <div className="login-card">

@@ -8,7 +8,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'default' }) => {
   };
 
   return (
-    <div className="modal" style={{ display: 'block' }} onClick={handleBackdropClick}>
+    <div className="modal" style={{ display: 'flex' }} onClick={handleBackdropClick}>
       <div className={`modal-content ${size === 'large' ? 'modal-content-large' : ''}`}>
         <div className="modal-header">
           <h2>{title}</h2>

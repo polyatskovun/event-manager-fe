@@ -1,28 +1,53 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/common/Header';
 import EventCard from '../components/events/EventCard';
 import { eventsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { localStorageUtils } from '../utils/localStorage';
 
 const EventsPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [events, setEvents] = useState([]);
   const [originalEvents, setOriginalEvents] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [sortBy, setSortBy] = useState('date-asc');
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     loadEvents();
   }, []);
 
+  useEffect(() => {
+    // Перевірити чи є локальні івенти та чи користувач авторизований
+    if (isAuthenticated() && localStorageUtils.hasLocalEvents()) {
+      setShowSyncPrompt(true);
+    }
+  }, [isAuthenticated]);
+
   const loadEvents = async () => {
     try {
-      const data = await eventsAPI.getAll();
-      setEvents(data);
+      let allEvents = [];
+
+      if (isAuthenticated()) {
+        // Завантажити івенти з сервера
+        const serverEvents = await eventsAPI.getAll();
+        allEvents = serverEvents;
+      } else {
+        // Завантажити локальні івенти
+        const localEvents = localStorageUtils.getLocalEvents();
+        allEvents = localEvents;
+      }
+
+      setEvents(allEvents);
 
       // Store original state for change detection
       const originals = {};
-      data.forEach((event) => {
+      allEvents.forEach((event) => {
         originals[event.id] = JSON.parse(JSON.stringify(event));
       });
       setOriginalEvents(originals);
@@ -34,11 +59,75 @@ const EventsPage = () => {
     }
   };
 
+  const syncLocalEventsToServer = async () => {
+    setSyncing(true);
+    try {
+      const localEvents = localStorageUtils.getLocalEvents();
+
+      // Створити всі локальні івенти на сервері
+      for (const event of localEvents) {
+        const { id, isLocal, createdAt, ...eventData } = event;
+        await eventsAPI.create(eventData);
+      }
+
+      // Очистити локальні івенти після успішної синхронізації
+      localStorageUtils.clearLocalEvents();
+      setShowSyncPrompt(false);
+
+      // Перезавантажити івенти з сервера
+      await loadEvents();
+      alert(`Успішно синхронізовано ${localEvents.length} івент(ів)!`);
+    } catch (err) {
+      alert('Помилка синхронізації івентів');
+      console.error(err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleSave = async (updatedEvent) => {
     try {
-      await eventsAPI.update(updatedEvent.id, updatedEvent);
+      if (updatedEvent.isLocal) {
+        // Оновити локальний івент
+        localStorageUtils.updateLocalEvent(updatedEvent.id, updatedEvent);
+      } else {
+        // Підготувати дані для бекенду - видалити тимчасові id
+        const eventDataForBackend = {
+          ...updatedEvent,
+          options: updatedEvent.options?.map(option => {
+            // Якщо id це число (тимчасовий id), видаляємо його
+            if (typeof option.id === 'number') {
+              const { id, ...optionWithoutId } = option;
+              return optionWithoutId;
+            }
+            return option;
+          }),
+          guests: updatedEvent.guests?.map(guest => {
+            // Якщо id це число (тимчасовий id), видаляємо його
+            if (typeof guest.id === 'number') {
+              const { id, ...guestWithoutId } = guest;
+              return guestWithoutId;
+            }
+            return guest;
+          })
+        };
 
-      // Update events list
+        // Оновити івент на сервері і отримати оновлені дані з правильними UUID
+        const savedEvent = await eventsAPI.update(updatedEvent.id, eventDataForBackend);
+
+        // Update events list with saved data from backend
+        setEvents(events.map((e) => (e.id === updatedEvent.id ? savedEvent : e)));
+
+        // Update original state with backend data
+        setOriginalEvents((prev) => ({
+          ...prev,
+          [savedEvent.id]: JSON.parse(JSON.stringify(savedEvent)),
+        }));
+
+        return; // Exit early to avoid duplicate state updates
+      }
+
+      // Update events list (for local events)
       setEvents(events.map((e) => (e.id === updatedEvent.id ? updatedEvent : e)));
 
       // Update original state
@@ -56,7 +145,16 @@ const EventsPage = () => {
     if (!confirm('Ви впевнені, що хочете видалити цей івент?')) return;
 
     try {
-      await eventsAPI.delete(id);
+      const event = events.find((e) => e.id === id);
+
+      if (event?.isLocal) {
+        // Видалити локальний івент
+        localStorageUtils.deleteLocalEvent(id);
+      } else {
+        // Видалити івент з сервера
+        await eventsAPI.delete(id);
+      }
+
       setEvents(events.filter((e) => e.id !== id));
 
       // Remove from original state
@@ -120,7 +218,7 @@ const EventsPage = () => {
         <div className="events-page-container">
           <div className="page-header">
             <h1 className="page-title">Мої івенти</h1>
-            <button className="btn-add-new">
+            <button className="btn-add-new" onClick={() => navigate('/create-event')}>
               <span className="btn-icon">+</span>
               Створити івент
             </button>
@@ -170,6 +268,16 @@ const EventsPage = () => {
                 </svg>
                 <h2>Ви ще не створили жодного івенту</h2>
                 <p>Почніть планувати свої події прямо зараз!</p>
+                <div className="empty-state-actions">
+                  <button className="btn-create-event" onClick={() => navigate('/create-event')}>
+                    Створити івент
+                  </button>
+                  {!isAuthenticated() && (
+                    <button className="btn-login" onClick={() => navigate('/login')}>
+                      Увійти в акаунт
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               filteredEvents.map((event) => (
@@ -185,6 +293,37 @@ const EventsPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Sync Prompt Modal */}
+      {showSyncPrompt && (
+        <div className="modal-overlay">
+          <div className="modal-content sync-prompt-modal">
+            <h3 className="modal-title">🔄 Синхронізація івентів</h3>
+            <p className="modal-text">
+              Знайдено {localStorageUtils.getLocalEvents().length} локальних івент(ів), створених до входу в акаунт.
+            </p>
+            <p className="modal-highlight">
+              💾 Бажаєте синхронізувати їх з вашим акаунтом? Це дозволить отримати доступ до них з будь-якого пристрою.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="modal-btn modal-btn-primary"
+                onClick={syncLocalEventsToServer}
+                disabled={syncing}
+              >
+                {syncing ? 'Синхронізація...' : 'Синхронізувати'}
+              </button>
+              <button
+                className="modal-btn modal-btn-secondary"
+                onClick={() => setShowSyncPrompt(false)}
+                disabled={syncing}
+              >
+                Не зараз
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
