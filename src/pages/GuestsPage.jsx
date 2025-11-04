@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/common/Header';
+import CreateGuestModal from '../components/guests/CreateGuestModal';
+import EditGuestModal from '../components/guests/EditGuestModal';
 import { guestsAPI } from '../services/api';
 
 const GuestsPage = () => {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedGuest, setSelectedGuest] = useState(null);
 
   useEffect(() => {
     loadGuests();
@@ -23,6 +28,34 @@ const GuestsPage = () => {
     }
   };
 
+  const handleGuestCreated = (newGuest) => {
+    setGuests([...guests, newGuest]);
+  };
+
+  const handleGuestUpdated = (updatedGuest) => {
+    setGuests(guests.map(guest =>
+      guest.id === updatedGuest.id ? updatedGuest : guest
+    ));
+  };
+
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  const handleOpenEditModal = (guest) => {
+    setSelectedGuest(guest);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedGuest(null);
+  };
+
   if (loading) return <div>Завантаження...</div>;
 
   return (
@@ -32,7 +65,7 @@ const GuestsPage = () => {
         <div className="guests-page-container">
           <div className="page-header">
             <h1 className="page-title">Мої гості</h1>
-            <button className="btn-add-new">
+            <button className="btn-add-new" onClick={handleOpenCreateModal}>
               <span className="btn-icon">+</span>
               Додати гостя
             </button>
@@ -51,6 +84,13 @@ const GuestsPage = () => {
                 <div key={guest.id} className="guest-card">
                   <div className="guest-card-header">
                     <h3 className="guest-card-name">{guest.name}</h3>
+                    <button
+                      className="edit-guest-btn"
+                      onClick={() => handleOpenEditModal(guest)}
+                      title="Редагувати гостя"
+                    >
+                      ✏️
+                    </button>
                   </div>
                   <div className="guest-card-details">
                     {guest.email && (
@@ -72,6 +112,19 @@ const GuestsPage = () => {
           </div>
         </div>
       </section>
+
+      <CreateGuestModal
+        isOpen={isCreateModalOpen}
+        onClose={handleCloseCreateModal}
+        onGuestCreated={handleGuestCreated}
+      />
+
+      <EditGuestModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        guest={selectedGuest}
+        onGuestUpdated={handleGuestUpdated}
+      />
     </>
   );
 };

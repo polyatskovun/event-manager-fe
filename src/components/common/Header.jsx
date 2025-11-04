@@ -33,6 +33,25 @@ const Header = () => {
     closeDropdown();
   };
 
+  const handleScrollToSection = (sectionId) => {
+    closeDropdown();
+
+    if (location.pathname !== '/') {
+      navigate('/');
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } else {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
   return (
     <header>
       <img src="/assets/img/logo.png" alt="Event manager logo" className="logo" />
@@ -51,10 +70,29 @@ const Header = () => {
             {isDropdownOpen && (
               <ul className="dropdown-menu">
                 <li>
-                  <a href="#statistics" onClick={closeDropdown}>Statistics</a>
+                  <a href="#home" onClick={(e) => { e.preventDefault(); handleScrollToSection('home'); }}>
+                    Home
+                  </a>
                 </li>
                 <li>
-                  <a href="#contacts" onClick={closeDropdown}>Contacts</a>
+                  <a href="#statistics" onClick={(e) => { e.preventDefault(); handleScrollToSection('statistics'); }}>
+                    Statistics
+                  </a>
+                </li>
+                <li>
+                  <a href="#create-event" onClick={(e) => { e.preventDefault(); handleScrollToSection('create-event'); }}>
+                    Create Event
+                  </a>
+                </li>
+                <li>
+                  <a href="#testimonials" onClick={(e) => { e.preventDefault(); handleScrollToSection('testimonials'); }}>
+                    Testimonials
+                  </a>
+                </li>
+                <li>
+                  <a href="#contacts" onClick={(e) => { e.preventDefault(); handleScrollToSection('contacts'); }}>
+                    Contacts
+                  </a>
                 </li>
               </ul>
             )}
