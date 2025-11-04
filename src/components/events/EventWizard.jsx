@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { eventsAPI } from '../../services/api';
+import { useState, useEffect } from 'react';
+import { eventsAPI, guestsAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { localStorageUtils } from '../../utils/localStorage';
+import AddressAutocomplete from '../common/AddressAutocomplete';
+import CreateGuestModal from '../guests/CreateGuestModal';
 
 const EventWizard = () => {
   const navigate = useNavigate();
@@ -11,6 +13,10 @@ const EventWizard = () => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [dropdownValue, setDropdownValue] = useState('');
+  const [allGuests, setAllGuests] = useState([]);
+  const [selectedGuests, setSelectedGuests] = useState([]);
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [formData, setFormData] = useState({
     type: '',
     name: '',
@@ -21,6 +27,22 @@ const EventWizard = () => {
     description: '',
     options: {},
   });
+
+  // Завантаження гостей при монтуванні компонента
+  useEffect(() => {
+    if (isAuthenticated()) {
+      loadGuests();
+    }
+  }, []);
+
+  const loadGuests = async () => {
+    try {
+      const guests = await guestsAPI.getAll();
+      setAllGuests(guests);
+    } catch (error) {
+      console.error('Error loading guests:', error);
+    }
+  };
 
   const eventTypes = [
     { value: 'BIRTHDAY', label: 'День народження', icon: '🎂' },
@@ -158,8 +180,12 @@ const EventWizard = () => {
     }
   };
 
+  const getTotalSteps = () => {
+    return isAuthenticated() ? 5 : 4;
+  };
+
   const handleNext = () => {
-    setCurrentStep((prev) => Math.min(prev + 1, 4));
+    setCurrentStep((prev) => Math.min(prev + 1, getTotalSteps()));
   };
 
   const handlePrevious = () => {
@@ -176,6 +202,22 @@ const EventWizard = () => {
 
   const handleRemoveOption = (optionKey) => {
     setSelectedOptions(selectedOptions.filter((key) => key !== optionKey));
+  };
+
+  const handleAddGuest = (guestId) => {
+    console.log('Adding guest with ID:', guestId, 'Type:', typeof guestId);
+    if (guestId && !selectedGuests.includes(guestId)) {
+      setSelectedGuests([...selectedGuests, guestId]);
+    }
+  };
+
+  const handleRemoveGuest = (guestId) => {
+    setSelectedGuests(selectedGuests.filter(id => id !== guestId));
+  };
+
+  const handleGuestCreated = (newGuest) => {
+    setAllGuests(prev => [...prev, newGuest]);
+    setSelectedGuests(prev => [...prev, newGuest.id]);
   };
 
   const handleSubmit = async () => {
@@ -195,13 +237,17 @@ const EventWizard = () => {
         budget: parseFloat(formData.budget) || 0,
         guestCount: parseInt(formData.guestCount) || 0,
         options: optionsArray,
+        guestIds: selectedGuests, // Відправляємо тільки масив ID гостей
       };
 
       if (isAuthenticated()) {
         // Користувач авторизований - зберігаємо на сервер
         await eventsAPI.create(eventData);
-        alert('Івент успішно створено!');
-        navigate('/events');
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          navigate('/events');
+        }, 2000);
       } else {
         // Користувач не авторизований - зберігаємо локально
         localStorageUtils.saveLocalEvent(eventData);
@@ -280,15 +326,13 @@ const EventWizard = () => {
 
             <div className="wizard-form-group">
               <label htmlFor="location">Місце проведення *</label>
-              <input
-                type="text"
-                id="location"
-                name="location"
+              <AddressAutocomplete
                 value={formData.location}
-                onChange={handleInputChange}
+                onChange={(value) => setFormData({ ...formData, location: value })}
                 placeholder={hints.locationHint}
-                required
+                required={true}
               />
+              <small className="form-hint">Почніть вводити адресу, і з'являться підказки</small>
             </div>
           </div>
         );
@@ -386,6 +430,103 @@ const EventWizard = () => {
               )}
             </div>
 
+            {!isAuthenticated() && (
+              <div className="wizard-summary">
+                <h4>Підсумок:</h4>
+                <p><strong>Тип:</strong> {eventTypes.find(t => t.value === formData.type)?.label}</p>
+                <p><strong>Назва:</strong> {formData.name}</p>
+                <p><strong>Дата:</strong> {formData.date}</p>
+                <p><strong>Місце:</strong> {formData.location}</p>
+                {formData.budget && <p><strong>Бюджет:</strong> {formData.budget} грн</p>}
+                {formData.guestCount && <p><strong>Гостей:</strong> {formData.guestCount}</p>}
+                {selectedOptions.length > 0 && (
+                  <p>
+                    <strong>Опції:</strong>{' '}
+                    {selectedOptions
+                      .map((key) => availableOptions.find((opt) => opt.key === key)?.label)
+                      .join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="wizard-step">
+            <h3 className="wizard-step-title">Крок 5: Додайте гостей</h3>
+            <p className="wizard-step-description">
+              Оберіть гостей зі списку або створіть нових
+            </p>
+
+            <div className="guests-selection-section">
+              <button
+                type="button"
+                className="btn-add-guest-wizard"
+                onClick={() => setIsGuestModalOpen(true)}
+              >
+                <span className="btn-icon">+</span>
+                Створити нового гостя
+              </button>
+
+              {allGuests.length > 0 ? (
+                <>
+                  <div className="available-guests-label">Доступні гості:</div>
+                  <div className="available-guests-dropdown">
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleAddGuest(e.target.value);
+                        }
+                      }}
+                      className="guests-dropdown"
+                    >
+                      <option value="" disabled>
+                        Оберіть гостя зі списку...
+                      </option>
+                      {allGuests
+                        .filter(guest => !selectedGuests.includes(guest.id))
+                        .map((guest) => (
+                          <option key={guest.id} value={guest.id}>
+                            👤 {guest.name} {guest.email ? `(${guest.email})` : ''}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <p className="no-guests-available">У вас ще немає гостей. Створіть першого!</p>
+              )}
+
+              <div className="selected-guests-bubbles">
+                {selectedGuests.length > 0 ? (
+                  selectedGuests.map((guestId) => {
+                    const guest = allGuests.find(g => g.id === guestId);
+                    if (!guest) return null;
+                    return (
+                      <div key={guestId} className="guest-bubble">
+                        <span className="guest-bubble-text">
+                          👤 {guest.name}
+                        </span>
+                        <button
+                          type="button"
+                          className="guest-bubble-remove"
+                          onClick={() => handleRemoveGuest(guestId)}
+                          aria-label={`Видалити ${guest.name}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="no-guests-selected">Гості ще не обрані. Оберіть зі списку вище.</p>
+                )}
+              </div>
+            </div>
+
             <div className="wizard-summary">
               <h4>Підсумок:</h4>
               <p><strong>Тип:</strong> {eventTypes.find(t => t.value === formData.type)?.label}</p>
@@ -400,6 +541,11 @@ const EventWizard = () => {
                   {selectedOptions
                     .map((key) => availableOptions.find((opt) => opt.key === key)?.label)
                     .join(', ')}
+                </p>
+              )}
+              {selectedGuests.length > 0 && (
+                <p>
+                  <strong>Запрошених гостей:</strong> {selectedGuests.length}
                 </p>
               )}
             </div>
@@ -421,6 +567,8 @@ const EventWizard = () => {
         return true;
       case 4:
         return true;
+      case 5:
+        return true;
       default:
         return false;
     }
@@ -432,7 +580,7 @@ const EventWizard = () => {
         <h2 className="wizard-title">Створити новий івент</h2>
 
         <div className="wizard-progress">
-          {[1, 2, 3, 4].map((step) => (
+          {Array.from({ length: getTotalSteps() }, (_, i) => i + 1).map((step) => (
             <div
               key={step}
               className={`wizard-progress-step ${currentStep >= step ? 'active' : ''} ${currentStep === step ? 'current' : ''}`}
@@ -442,7 +590,8 @@ const EventWizard = () => {
                 {step === 1 && 'Тип'}
                 {step === 2 && 'Інформація'}
                 {step === 3 && 'Деталі'}
-                {step === 4 && 'Підсумок'}
+                {step === 4 && (isAuthenticated() ? 'Опції' : 'Підсумок')}
+                {step === 5 && 'Гості'}
               </div>
             </div>
           ))}
@@ -462,7 +611,7 @@ const EventWizard = () => {
               </button>
             )}
 
-            {currentStep < 4 ? (
+            {currentStep < getTotalSteps() ? (
               <button
                 type="button"
                 className="wizard-btn wizard-btn-primary"
@@ -484,6 +633,24 @@ const EventWizard = () => {
           </div>
         </form>
       </div>
+
+      {/* Create Guest Modal */}
+      <CreateGuestModal
+        isOpen={isGuestModalOpen}
+        onClose={() => setIsGuestModalOpen(false)}
+        onGuestCreated={handleGuestCreated}
+      />
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="modal-overlay success-modal-overlay">
+          <div className="modal-content success-modal-content">
+            <div className="success-icon">✅</div>
+            <h3 className="success-title">Івент успішно створено!</h3>
+            <p className="success-message">Перенаправлення на сторінку івентів...</p>
+          </div>
+        </div>
+      )}
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/common/Header';
+import ScrollToTop from '../components/common/ScrollToTop';
 import EventCard from '../components/events/EventCard';
 import { eventsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -324,6 +325,8 @@ const EventsPage = () => {
           </div>
         </div>
       )}
+
+      <ScrollToTop />
     </>
   );
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/common/Header';
+import ScrollToTop from '../components/common/ScrollToTop';
 import CreateGuestModal from '../components/guests/CreateGuestModal';
 import EditGuestModal from '../components/guests/EditGuestModal';
 import { guestsAPI } from '../services/api';
@@ -125,6 +126,8 @@ const GuestsPage = () => {
         guest={selectedGuest}
         onGuestUpdated={handleGuestUpdated}
       />
+
+      <ScrollToTop />
     </>
   );
 };
